@@ -5,11 +5,16 @@ function createPricesRouter(db) {
   const router = express.Router();
 
   router.get('/:symbol', async (req, res) => {
-    const symbol = req.params.symbol.toUpperCase();
-    const type = req.query.type || 'stock';
-    const prices = await getPortfolioPrices(db, [{ symbol, type }]);
-    const info = prices[symbol] || { price_usd: null, stale: true };
-    res.json({ symbol, ...info });
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const type = req.query.type || 'stock';
+      const prices = await getPortfolioPrices(db, [{ symbol, type }]);
+      const info = prices[symbol] || { price_usd: null, stale: true };
+      res.json({ symbol, ...info });
+    } catch (err) {
+      console.error('[prices] error:', err);
+      res.status(500).json({ error: 'Failed to fetch price' });
+    }
   });
 
   return router;

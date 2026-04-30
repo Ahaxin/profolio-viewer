@@ -14,9 +14,17 @@ function createAssetsRouter(db) {
       return res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(', ')}` });
     }
 
-    const result = db.prepare('INSERT INTO assets (type, symbol, name) VALUES (?, ?, ?)').run(type, symbol.toUpperCase(), name);
-    const asset = db.prepare('SELECT * FROM assets WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(asset);
+    try {
+      const result = db.prepare('INSERT INTO assets (type, symbol, name) VALUES (?, ?, ?)').run(type, symbol.toUpperCase(), name);
+      const asset = db.prepare('SELECT * FROM assets WHERE id = ?').get(result.lastInsertRowid);
+      res.status(201).json(asset);
+    } catch (err) {
+      if (err.message && err.message.includes('UNIQUE constraint')) {
+        return res.status(409).json({ error: 'An asset with this symbol already exists' });
+      }
+      console.error('[assets] error:', err);
+      res.status(500).json({ error: 'Failed to create asset' });
+    }
   });
 
   router.delete('/:id', (req, res) => {

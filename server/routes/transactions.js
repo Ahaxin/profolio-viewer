@@ -11,6 +11,9 @@ function createTransactionsRouter(db) {
     if (!['buy', 'sell'].includes(action)) {
       return res.status(400).json({ error: 'action must be buy or sell' });
     }
+    if (quantity <= 0 || price_usd <= 0 || isNaN(quantity) || isNaN(price_usd)) {
+      return res.status(400).json({ error: 'quantity and price_usd must be positive numbers' });
+    }
 
     const asset = db.prepare('SELECT id FROM assets WHERE id = ?').get(asset_id);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
@@ -23,6 +26,8 @@ function createTransactionsRouter(db) {
   });
 
   router.get('/:assetId', (req, res) => {
+    const asset = db.prepare('SELECT id FROM assets WHERE id = ?').get(req.params.assetId);
+    if (!asset) return res.status(404).json({ error: 'Asset not found' });
     const txs = db.prepare(
       'SELECT * FROM transactions WHERE asset_id = ? ORDER BY date DESC, created_at DESC'
     ).all(req.params.assetId);

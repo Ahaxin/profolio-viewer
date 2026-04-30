@@ -8,6 +8,9 @@ function createFlatValuationsRouter(db) {
     if (!asset_id || value_usd == null || !date) {
       return res.status(400).json({ error: 'asset_id, value_usd, and date are required' });
     }
+    if (isNaN(value_usd) || value_usd < 0) {
+      return res.status(400).json({ error: 'value_usd must be a non-negative number' });
+    }
 
     const asset = db.prepare("SELECT id, type FROM assets WHERE id = ?").get(asset_id);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
