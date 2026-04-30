@@ -29,7 +29,7 @@ export default function LoginPage() {
         <h1 style={styles.title}>Portfolio Viewer</h1>
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label>Username</label>
+            <label style={styles.label}>Username</label>
             <input
               type="text"
               value={username}
@@ -40,7 +40,7 @@ export default function LoginPage() {
             />
           </div>
           <div style={styles.field}>
-            <label>Password</label>
+            <label style={styles.label}>Password</label>
             <input
               type="password"
               value={password}
@@ -61,12 +61,42 @@ export default function LoginPage() {
 }
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' },
-  card: { background: '#fff', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: '320px' },
-  title: { margin: '0 0 1.5rem', fontSize: '1.5rem', textAlign: 'center' },
+  container: {
+    display: 'flex',
+    minHeight: '100vh',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--bg-base)',
+  },
+  card: {
+    background: 'var(--bg-card)',
+    padding: '2rem',
+    borderRadius: '12px',
+    boxShadow: 'var(--shadow)',
+    border: '1px solid var(--border)',
+    width: '320px',
+  },
+  title: { margin: '0 0 1.5rem', fontSize: '1.5rem', textAlign: 'center', color: 'var(--accent)' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   field: { display: 'flex', flexDirection: 'column', gap: '4px' },
-  input: { padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' },
-  button: { padding: '10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1rem', cursor: 'pointer' },
-  error: { color: '#dc2626', margin: 0, fontSize: '0.875rem' },
+  label: { fontSize: '0.875rem', color: 'var(--text-secondary)' },
+  input: {
+    padding: '8px',
+    border: '1px solid var(--input-border)',
+    borderRadius: '6px',
+    fontSize: '1rem',
+    background: 'var(--input-bg)',
+    color: 'var(--input-text)',
+  },
+  button: {
+    padding: '10px',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-text)',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  error: { color: 'var(--pnl-down)', margin: 0, fontSize: '0.875rem' },
 };
