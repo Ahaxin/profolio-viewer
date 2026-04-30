@@ -17,6 +17,14 @@ describe('migrations', () => {
     expect(row).toBeDefined();
   });
 
+  it('enforces transactions foreign key constraint (rejects invalid asset_id)', () => {
+    runMigrations(db);
+    // runMigrations already calls pragma foreign_keys = ON
+    expect(() => {
+      db.prepare("INSERT INTO transactions (asset_id, action, quantity, price_usd, date) VALUES (999, 'buy', 1, 100, '2024-01-01')").run();
+    }).toThrow();
+  });
+
   it('creates prices_cache table', () => {
     runMigrations(db);
     const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='prices_cache'").get();

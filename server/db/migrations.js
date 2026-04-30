@@ -37,7 +37,8 @@ function runMigrations(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
       value_usd REAL NOT NULL,
-      date DATE NOT NULL
+      date DATE NOT NULL,
+      created_at DATETIME DEFAULT (datetime('now'))
     );
   `);
 }
