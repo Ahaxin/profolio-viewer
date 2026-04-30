@@ -15,6 +15,9 @@ function createApp(db) {
   app.use(express.json());
   app.use(cookieParser());
 
+  // Health check (public)
+  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
   // Public auth routes
   app.use('/api/auth', createAuthRouter(db));
 
