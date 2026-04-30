@@ -127,7 +127,7 @@ const styles = {
   inp: {
     padding: '8px',
     border: '1px solid var(--input-border)',
-    borderRadius: '4px',
+    borderRadius: '6px',
     background: 'var(--input-bg)',
     color: 'var(--input-text)',
   },
@@ -136,7 +136,7 @@ const styles = {
     background: 'var(--btn-primary-bg)',
     color: 'var(--btn-primary-text)',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: '600',
   },
