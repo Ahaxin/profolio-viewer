@@ -35,8 +35,12 @@ export default function DashboardPage() {
 
   async function handleDelete(assetId) {
     if (!confirm('Delete this asset and all its transactions?')) return;
-    await api.deleteAsset(assetId);
-    loadPortfolio();
+    try {
+      await api.deleteAsset(assetId);
+      loadPortfolio();
+    } catch {
+      setError('Failed to delete asset');
+    }
   }
 
   async function handleLogout() {
