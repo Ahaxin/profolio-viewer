@@ -48,7 +48,11 @@ profolio-viewer/
 
 ## Data Model (SQLite)
 
-All DATETIME values stored as **UTC ISO 8601 strings**. The frontend displays them in the user's local timezone.
+All DATETIME values stored as **UTC ISO 8601 strings**. DATE values (transaction date, valuation date) are stored as `YYYY-MM-DD` strings and treated as calendar dates with no timezone conversion — they represent the day the user entered, displayed as-is.
+
+**Asset types** are a strict lowercase enum: `stock`, `crypto`, `flat`, `other`. Validated server-side on creation; invalid values return 400.
+
+**Symbol uniqueness:** Each asset row is a separate named position. Duplicate symbols are allowed (e.g., two BTC entries for different purchase batches). The `/api/prices/:symbol` route fetches by symbol string regardless of how many assets use it.
 
 ### `assets`
 | column | type | notes |
@@ -86,11 +90,19 @@ All DATETIME values stored as **UTC ISO 8601 strings**. The frontend displays th
 | date | DATE | user-entered date (UTC) |
 
 **P&L calculation (computed at query time):**
+
+For `stock` and `crypto`:
 - `avg_buy_price` = total cost of all buys ÷ total bought quantity
 - `net_quantity` = total bought − total sold
 - `current_value` = `net_quantity × current_price`
 - `P&L` = `(current_price − avg_buy_price) × net_quantity`
 - If `net_quantity = 0` (all shares sold): show as a closed position with realized P&L only; exclude from total portfolio value
+
+For `flat` and `other`:
+- `current_value` = latest `flat_valuations.value_usd` for that asset (most recent by `date`)
+- `cost_basis` = earliest `flat_valuations.value_usd` (first entry, representing purchase price)
+- `P&L` = `current_value − cost_basis`
+- No quantity concept; treated as a single indivisible asset
 
 **Delete cascade:** Deleting an asset cascades to its `transactions` and `flat_valuations` rows.
 
@@ -108,7 +120,7 @@ All DATETIME values stored as **UTC ISO 8601 strings**. The frontend displays th
 | POST | `/api/transactions` | Record a buy/sell transaction |
 | GET | `/api/transactions/:assetId` | Transaction history for one asset |
 | GET | `/api/prices/:symbol` | Fetch live price for a symbol |
-| POST | `/api/flat-valuations` | Add a manual valuation for a flat/other asset |
+| POST | `/api/flat-valuations` | Add a manual valuation for a flat/other asset (body: `{ asset_id, value_usd, date }`) |
 
 All routes except `POST /api/auth/login` require a valid JWT cookie.
 
@@ -141,7 +153,14 @@ All routes except `POST /api/auth/login` require a valid JWT cookie.
 | Crypto | CoinGecko public API | Free tier, ~30 req/min |
 | Flat / Other | Manual entry only | No external API |
 
-**Caching strategy:** All symbols are fetched in a single batch call (not one request per symbol) to minimise API calls. Results stored in `prices_cache`, refreshed at most every 5 minutes. If a fetch fails, the last cached value is returned with a stale flag — the dashboard never shows an error-broken state.
+**Caching strategy:** All symbols of the same type are fetched in a single batch call per refresh cycle to minimise API calls. Results stored in `prices_cache`, refreshed at most every 5 minutes.
+
+**Price fetch failure handling:**
+- If a symbol has a cached price: return it with `{ price_usd, stale: true, updated_at }` — dashboard shows price with "stale" label
+- If a symbol has never been fetched and fetch fails: return `{ price_usd: null, stale: true }` — dashboard shows "—" for that row
+- Invalid/unknown symbols (not found on Yahoo Finance or CoinGecko): treated the same as a fetch failure; dashboard shows "—" with a tooltip hint to check the symbol
+
+**Railway reverse proxy:** `app.set('trust proxy', 1)` must be set so `express-rate-limit` correctly reads the client IP from the `X-Forwarded-For` header.
 
 ---
 
@@ -155,6 +174,8 @@ All routes except `POST /api/auth/login` require a valid JWT cookie.
   - `SEED_USERNAME` — initial login username
   - `SEED_PASSWORD` — initial login password (used once by seed script, then ignored)
   - `NODE_ENV=production`
+- **Seed script:** Runs once on startup — checks if a user row exists in the DB; if not, creates one using `SEED_USERNAME` / `SEED_PASSWORD`. If a user already exists, the script is a no-op. This prevents password reset on every redeploy.
+- **JWT re-login:** 7-day expiry; no silent refresh. Users re-login after expiry. Acceptable for a personal app.
 
 ---
 
