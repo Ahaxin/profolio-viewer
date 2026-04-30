@@ -95,14 +95,18 @@ For `stock` and `crypto`:
 - `avg_buy_price` = total cost of all buys ÷ total bought quantity
 - `net_quantity` = total bought − total sold
 - `current_value` = `net_quantity × current_price`
-- `P&L` = `(current_price − avg_buy_price) × net_quantity`
-- If `net_quantity = 0` (all shares sold): show as a closed position with realized P&L only; exclude from total portfolio value
+- `unrealized_pnl` = `(current_price − avg_buy_price) × net_quantity`
+- **Closed positions** (`net_quantity = 0`): `realized_pnl` = total sell proceeds − total buy cost; excluded from portfolio total value but included in total P&L summary
+- Display: round all monetary values to 2 decimal places; quantities up to 8 decimal places (for crypto)
 
 For `flat` and `other`:
-- `current_value` = latest `flat_valuations.value_usd` for that asset (most recent by `date`)
-- `cost_basis` = earliest `flat_valuations.value_usd` (first entry, representing purchase price)
+- `current_value` = latest `flat_valuations.value_usd` ordered by `date` DESC
+- `cost_basis` = earliest `flat_valuations.value_usd` ordered by `date` ASC
 - `P&L` = `current_value − cost_basis`
+- If only one valuation exists: `cost_basis = current_value`, `P&L = 0`
 - No quantity concept; treated as a single indivisible asset
+
+**Dashboard total P&L** = sum of unrealized P&L (open stock/crypto) + realized P&L (closed positions) + flat/other P&L.
 
 **Delete cascade:** Deleting an asset cascades to its `transactions` and `flat_valuations` rows.
 
@@ -142,6 +146,8 @@ All routes except `POST /api/auth/login` require a valid JWT cookie.
 
 ### Transaction History Page
 - Click any asset row on dashboard to see full buy/sell history in a table
+- Sorted by `date` descending (newest first)
+- No pagination required (personal use, small number of transactions expected)
 
 ---
 
@@ -153,7 +159,7 @@ All routes except `POST /api/auth/login` require a valid JWT cookie.
 | Crypto | CoinGecko public API | Free tier, ~30 req/min |
 | Flat / Other | Manual entry only | No external API |
 
-**Caching strategy:** All symbols of the same type are fetched in a single batch call per refresh cycle to minimise API calls. Results stored in `prices_cache`, refreshed at most every 5 minutes.
+**Caching strategy:** When `GET /api/portfolio` is called, the server checks `prices_cache` for each symbol. If any cached entry is older than 5 minutes (or missing), it batches all stale symbols into one request per provider (one CoinGecko call for all crypto symbols, one Yahoo Finance call for all stock symbols) and updates the cache. Newly added assets get their price fetched immediately on next portfolio load. Rate limit errors (HTTP 429) from either provider are treated as fetch failures — return last cached value with stale flag.
 
 **Price fetch failure handling:**
 - If a symbol has a cached price: return it with `{ price_usd, stale: true, updated_at }` — dashboard shows price with "stale" label
@@ -174,7 +180,7 @@ All routes except `POST /api/auth/login` require a valid JWT cookie.
   - `SEED_USERNAME` — initial login username
   - `SEED_PASSWORD` — initial login password (used once by seed script, then ignored)
   - `NODE_ENV=production`
-- **Seed script:** Runs once on startup — checks if a user row exists in the DB; if not, creates one using `SEED_USERNAME` / `SEED_PASSWORD`. If a user already exists, the script is a no-op. This prevents password reset on every redeploy.
+- **Seed script:** Runs once on startup — checks if a user row exists in the DB; if not, creates one using `SEED_USERNAME` / `SEED_PASSWORD`. If a user already exists, the script is a no-op. **Known limitation:** changing `SEED_PASSWORD` in Railway will NOT update the stored password — to change the password after initial setup, delete the user row from the DB and redeploy.
 - **JWT re-login:** 7-day expiry; no silent refresh. Users re-login after expiry. Acceptable for a personal app.
 
 ---
