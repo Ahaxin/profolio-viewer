@@ -37,8 +37,8 @@ async function getPortfolioPrices(db, assets) {
       const { fetchStockPrices } = await import('./yahooFinance');
       const fresh = await fetchStockPrices(staleStocks);
       _updateCache(db, fresh, result);
-    } catch {
-      // keep stale fallback already set above
+    } catch (err) {
+      console.error(`[priceService] Failed to fetch stock prices for [${staleStocks.join(', ')}]:`, err.message);
     }
   }
 
@@ -48,8 +48,8 @@ async function getPortfolioPrices(db, assets) {
       const { fetchCryptoPrices } = await import('./coinGecko');
       const fresh = await fetchCryptoPrices(staleCrypto);
       _updateCache(db, fresh, result);
-    } catch {
-      // keep stale fallback
+    } catch (err) {
+      console.error(`[priceService] Failed to fetch crypto prices for [${staleCrypto.join(', ')}]:`, err.message);
     }
   }
 
