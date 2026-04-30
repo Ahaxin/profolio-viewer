@@ -25,8 +25,21 @@ describe('calcStockPnl', () => {
 
   it('calculates unrealized_pnl correctly', () => {
     const result = calcStockPnl(transactions, 150);
-    // (150 - 106.67) * 12 ≈ 520
-    expect(result.pnl_usd).toBeGreaterThan(0);
+    // avg_buy_price = 1600/15 ≈ 106.67, net_qty = 12
+    // pnl = (150 - 106.67) * 12 ≈ 519.96
+    expect(result.pnl_usd).toBeCloseTo(519.96, 1);
+  });
+
+  it('throws on unknown transaction action', () => {
+    const badTx = [{ action: 'transfer', quantity: 5, price_usd: 100 }];
+    expect(() => calcStockPnl(badTx, 150)).toThrow('unknown action');
+  });
+
+  it('returns nulls for empty transaction array', () => {
+    const result = calcStockPnl([], 150);
+    expect(result.avg_buy_price).toBeNull();
+    expect(result.pnl_usd).toBeNull();
+    expect(result.is_closed).toBe(false);
   });
 
   it('handles closed position (net_quantity = 0)', () => {

@@ -8,6 +8,17 @@ function roundUsd(n) {
  * @param {number|null} currentPrice — current market price (null if unavailable)
  */
 function calcStockPnl(transactions, currentPrice) {
+  if (!transactions || transactions.length === 0) {
+    return {
+      net_quantity: 0,
+      avg_buy_price: null,
+      current_value: null,
+      pnl_usd: null,
+      pnl_pct: null,
+      is_closed: false,
+    };
+  }
+
   let totalBuyQty = 0;
   let totalBuyCost = 0;
   let totalSellQty = 0;
@@ -17,15 +28,17 @@ function calcStockPnl(transactions, currentPrice) {
     if (tx.action === 'buy') {
       totalBuyQty += tx.quantity;
       totalBuyCost += tx.quantity * tx.price_usd;
-    } else {
+    } else if (tx.action === 'sell') {
       totalSellQty += tx.quantity;
       totalSellProceeds += tx.quantity * tx.price_usd;
+    } else {
+      throw new Error(`calcStockPnl: unknown action "${tx.action}"`);
     }
   }
 
   const netQuantity = totalBuyQty - totalSellQty;
   const avgBuyPrice = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
-  const isClosed = netQuantity === 0;
+  const isClosed = Math.abs(netQuantity) < 1e-10;
 
   if (isClosed) {
     const realizedPnl = totalSellProceeds - totalBuyCost;
@@ -73,7 +86,9 @@ function calcFlatPnl(valuations) {
     return { cost_basis: null, current_value: null, pnl_usd: null, pnl_pct: null };
   }
 
-  const sorted = [...valuations].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...valuations].sort((a, b) =>
+    String(a.date).localeCompare(String(b.date))
+  );
   const costBasis = sorted[0].value_usd;
   const currentValue = sorted[sorted.length - 1].value_usd;
   const pnlUsd = currentValue - costBasis;
