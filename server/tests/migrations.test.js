@@ -46,4 +46,10 @@ describe('migrations', () => {
   it('is idempotent — running twice does not throw', () => {
     expect(() => { runMigrations(db); runMigrations(db); }).not.toThrow();
   });
+
+  it('transactions table has remarks column', () => {
+    runMigrations(db);
+    const cols = db.prepare("PRAGMA table_info(transactions)").all();
+    expect(cols.some(c => c.name === 'remarks')).toBe(true);
+  });
 });

@@ -41,6 +41,12 @@ function runMigrations(db) {
       created_at DATETIME DEFAULT (datetime('now'))
     );
   `);
+
+  // Additive migration: remarks column on transactions
+  const txCols = db.prepare("PRAGMA table_info(transactions)").all();
+  if (!txCols.some(c => c.name === 'remarks')) {
+    db.exec("ALTER TABLE transactions ADD COLUMN remarks TEXT");
+  }
 }
 
 module.exports = { runMigrations };
