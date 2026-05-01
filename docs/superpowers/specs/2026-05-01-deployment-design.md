@@ -94,7 +94,7 @@ primary_region = "sin"   # change to your nearest region
     interval = "10s"
     timeout = "5s"
 
-[mounts]
+[[mounts]]
   source = "portfolio_data"
   destination = "/data"
 ```
