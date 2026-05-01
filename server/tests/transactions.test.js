@@ -39,6 +39,32 @@ describe('POST /api/transactions', () => {
       .send({ asset_id: 99999, action: 'buy', quantity: 5, price_usd: 150, date: '2024-01-01' });
     expect(res.status).toBe(404);
   });
+
+  it('stores and returns remarks when provided', async () => {
+    const res = await request(app).post('/api/transactions').set('Cookie', cookie)
+      .send({ asset_id: assetId, action: 'buy', quantity: 1, price_usd: 100, date: '2024-03-01', remarks: 'test entry reason' });
+    expect(res.status).toBe(201);
+
+    const getRes = await request(app).get(`/api/transactions/${assetId}`).set('Cookie', cookie);
+    const tx = getRes.body.find(t => t.id === res.body.id);
+    expect(tx.remarks).toBe('test entry reason');
+  });
+
+  it('accepts transaction without remarks', async () => {
+    const res = await request(app).post('/api/transactions').set('Cookie', cookie)
+      .send({ asset_id: assetId, action: 'sell', quantity: 1, price_usd: 110, date: '2024-03-02' });
+    expect(res.status).toBe(201);
+
+    const getRes = await request(app).get(`/api/transactions/${assetId}`).set('Cookie', cookie);
+    const tx = getRes.body.find(t => t.id === res.body.id);
+    expect(tx.remarks === null || tx.remarks === '').toBe(true);
+  });
+
+  it('rejects remarks longer than 500 characters', async () => {
+    const res = await request(app).post('/api/transactions').set('Cookie', cookie)
+      .send({ asset_id: assetId, action: 'buy', quantity: 1, price_usd: 100, date: '2024-03-03', remarks: 'x'.repeat(501) });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('GET /api/transactions/:assetId', () => {
