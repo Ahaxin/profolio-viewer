@@ -22,23 +22,85 @@ Browser → Vercel (React static files)
 
 ### Files to create
 
-**`Dockerfile`** (at repo root, targeting `server/`)
-- Base image: `node:20-slim`
-- Install native build deps for `better-sqlite3` (python3, make, g++)
-- Copy `server/` and install production dependencies
-- Expose port 3001
-- CMD: `node index.js`
+**`Dockerfile`** (at repo root)
+
+This is an npm workspace project (`package.json` has `"workspaces": ["server", "client"]`). The Dockerfile must copy the root lockfile and install only the server workspace to get `better-sqlite3` native bindings built correctly for Linux:
+
+```dockerfile
+FROM node:20-slim
+
+# Native build deps for better-sqlite3
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy workspace root manifests first (for layer caching)
+COPY package.json package-lock.json ./
+COPY server/package.json ./server/
+
+# Install server workspace deps only, production only
+RUN npm ci --workspace=server --omit=dev
+
+# Copy server source
+COPY server/ ./server/
+
+WORKDIR /app/server
+EXPOSE 3001
+CMD ["node", "index.js"]
+```
+
+**`.dockerignore`** (at repo root)
+
+```
+node_modules/
+client/
+docs/
+.env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+/data/
+```
 
 **`fly.toml`** (at repo root)
-- App name chosen at `fly launch` time
-- Internal port: 3001
-- Health check: `GET /api/health` → 200
-- Mounts: persistent volume at `/data`
-- `[env]`: `NODE_ENV=production`, `DB_PATH=/data/portfolio.db`, `PORT=3001`
 
-**`server/routes/health.js`**
-- `GET /api/health` → `res.json({ ok: true })`
-- Required by Fly.io health checks before marking deployment live
+```toml
+app = "<your-app-name>"
+primary_region = "sin"   # change to your nearest region
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  DB_PATH = "/data/portfolio.db"
+  PORT = "3001"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+
+  [[http_service.checks]]
+    path = "/api/health"
+    interval = "10s"
+    timeout = "5s"
+
+[mounts]
+  source = "portfolio_data"
+  destination = "/data"
+```
+
+> **Note:** The `source` value in `[mounts]` must exactly match the volume name used in `fly volumes create`. A mismatch is the most common Fly.io deployment failure.
+
+> **Note on `fly launch`:** Running `fly launch` will interactively generate and overwrite `fly.toml`. Run `fly launch --no-deploy` first to get a generated config, then replace its contents with the above before running `fly deploy`.
+
+### Health check
+
+`GET /api/health` already exists in `server/app.js` (line 19) — no new files needed.
+
+### Static file serving (dead code in split deployment)
+
+`server/app.js` lines 33–39 serve `client/dist` when `NODE_ENV=production`. In the Fly.io image, `client/dist` won't exist, so this block is harmless dead code (the static middleware silently skips a missing directory, and the catch-all `GET *` handler returns a 404 for `index.html`). It does not need to be removed for the deployment to work.
 
 ### Secrets (set via `fly secrets set`)
 
@@ -48,30 +110,43 @@ Browser → Vercel (React static files)
 | `SEED_USERNAME` | Admin username |
 | `SEED_PASSWORD` | Strong password |
 
-### Persistent Volume
+> `dotenv` is called in production but silently ignores a missing `.env` file — all values come from Fly.io secrets and the `[env]` table above.
 
-- Created with `fly volumes create portfolio_data --size 1` (1GB, free tier)
-- Mounted at `/data` in `fly.toml`
-- `DB_PATH=/data/portfolio.db` → SQLite file lives on the volume, survives deploys/restarts
+### Cookie `sameSite` note
 
-### Deployment Steps
+`server/routes/auth.js:34` sets `sameSite: 'strict'`. With the Vercel proxy model, the cookie is set on the Vercel origin (not Fly.io), so login works. However, `strict` means the cookie is not sent on cross-site navigations (e.g. clicking a link to the app from another site). Changing to `sameSite: 'lax'` is safer for this deployment model and avoids intermittent "logged out" behaviour for users arriving via external links. This is a recommended change but not blocking.
 
-1. `fly launch` from repo root (creates app, detects Dockerfile)
-2. `fly volumes create portfolio_data --size 1 --region <region>`
-3. `fly secrets set JWT_SECRET=... SEED_USERNAME=... SEED_PASSWORD=...`
-4. `fly deploy`
+### Deployment Steps (Fly.io)
+
+1. Install Fly CLI: `curl -L https://fly.io/install.sh | sh` then `fly auth login`
+2. Run `fly launch --no-deploy` from repo root to scaffold the app (choose region, skip deploy)
+3. Replace the generated `fly.toml` with the config above, substituting `<your-app-name>`
+4. **Create volume first** (must exist before deploy or the app crashes on boot):
+   ```
+   fly volumes create portfolio_data --size 1 --region <region>
+   ```
+5. Set secrets:
+   ```
+   fly secrets set JWT_SECRET=... SEED_USERNAME=... SEED_PASSWORD=...
+   ```
+6. Deploy:
+   ```
+   fly deploy
+   ```
+7. Verify: `fly logs` and `curl https://<your-app-name>.fly.dev/api/health`
 
 ## Frontend: Vercel
 
 ### Files to create
 
 **`client/vercel.json`**
+
 ```json
 {
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://<fly-app-name>.fly.dev/api/$1"
+      "destination": "https://<your-app-name>.fly.dev/api/$1"
     },
     {
       "source": "/(.*)",
@@ -83,6 +158,7 @@ Browser → Vercel (React static files)
 
 - The `/api/*` rewrite proxies API calls to Fly.io — no CORS needed, cookies work as same-origin
 - The catch-all rewrite enables React Router client-side navigation
+- `$1` backreferences are supported by Vercel's rewrite engine
 
 ### Vercel Project Settings
 
@@ -92,12 +168,12 @@ Browser → Vercel (React static files)
 | Build command | `npm run build` |
 | Output directory | `dist` |
 
-### Deployment Steps
+### Deployment Steps (Vercel)
 
 1. Push repo to GitHub
-2. Import project on Vercel, set root directory to `client`
-3. After Fly.io is deployed, update `client/vercel.json` with the actual Fly.io app URL
-4. Deploy on Vercel (auto-deploys on every push to `master`)
+2. Import project on Vercel → set root directory to `client`
+3. After Fly.io is live, update `client/vercel.json` with the actual app name
+4. Vercel deploys automatically on every push to `master`
 
 ## No Client Code Changes Required
 
@@ -112,7 +188,6 @@ Starting fresh — no migration needed. On first boot, `server/index.js` runs mi
 | File | Action |
 |------|--------|
 | `Dockerfile` | Create |
+| `.dockerignore` | Create |
 | `fly.toml` | Create |
-| `server/routes/health.js` | Create |
-| `server/app.js` | Edit — register health route |
 | `client/vercel.json` | Create |
