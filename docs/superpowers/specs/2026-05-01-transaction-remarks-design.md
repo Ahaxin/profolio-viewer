@@ -1,0 +1,70 @@
+# Transaction Remarks Field Design
+
+**Date:** 2026-05-01
+**Status:** Approved
+
+## Overview
+
+Add an optional free-text `remarks` field to buy/sell transactions. The field is stored in the database, submitted via the existing transaction form, and displayed as a native browser tooltip on hover in the transaction history table.
+
+## Database
+
+A new additive migration adds `remarks TEXT` (nullable) to the `transactions` table:
+
+```sql
+ALTER TABLE transactions ADD COLUMN remarks TEXT;
+```
+
+This runs after the existing `CREATE TABLE IF NOT EXISTS` block in `server/db/migrations.js`. The migration must be guarded so it only runs once (check if column already exists before altering).
+
+**Guard pattern for SQLite:**
+```js
+const cols = db.prepare("PRAGMA table_info(transactions)").all();
+if (!cols.some(c => c.name === 'remarks')) {
+  db.exec("ALTER TABLE transactions ADD COLUMN remarks TEXT");
+}
+```
+
+## API
+
+### `POST /api/transactions`
+
+- Accepts an optional `remarks` field in the request body (string, max 500 chars)
+- Not required — omitting it or sending `null`/`''` is valid
+- Included in the `INSERT INTO transactions` statement
+- Validation: if provided, must be a string ≤ 500 characters
+
+### `GET /api/transactions/:assetId`
+
+- No change needed — already uses `SELECT *`, so `remarks` is returned automatically once the column exists
+
+## UI — `TransactionHistoryPage.jsx`
+
+### Form
+
+- Add `remarks: ''` to the initial form state
+- Add a single-line `<input>` at the end of the form:
+  - `placeholder="Remarks / reason (optional)"`
+  - `maxLength={500}`
+  - Uses existing `styles.inp` styling
+- Pass `remarks: form.remarks` in the `api.addTransaction(...)` call
+
+### Table
+
+- Add `title={tx.remarks || undefined}` to each `<tr>` element
+- When a transaction has remarks, the browser shows a native tooltip on hover
+- Rows without remarks (`null` or empty string) show nothing — `undefined` suppresses the `title` attribute entirely
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| `server/db/migrations.js` | Add guarded `ALTER TABLE` for `remarks` column |
+| `server/routes/transactions.js` | Accept `remarks` in POST body, include in INSERT |
+| `client/src/pages/TransactionHistoryPage.jsx` | Add remarks input to form, add `title` to table rows |
+
+## Out of Scope
+
+- Editing remarks on existing transactions
+- Searching or filtering by remarks
+- Showing remarks as a visible table column
