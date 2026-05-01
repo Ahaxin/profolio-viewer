@@ -1,7 +1,7 @@
 # Transaction Remarks Field Design
 
 **Date:** 2026-05-01
-**Status:** Approved
+**Status:** Ready for Implementation
 
 ## Overview
 
