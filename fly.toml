@@ -1,0 +1,22 @@
+app = "<your-app-name>"
+primary_region = "<your-region>"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  DB_PATH = "/data/portfolio.db"
+  PORT = "3001"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+
+  [[http_service.checks]]
+    path = "/api/health"
+    interval = "10s"
+    timeout = "5s"
+
+[[mounts]]
+  source = "portfolio_data"
+  destination = "/data"
