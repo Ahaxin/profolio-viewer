@@ -8,7 +8,7 @@ export default function TransactionHistoryPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddTx, setShowAddTx] = useState(false);
-  const [form, setForm] = useState({ action: 'buy', quantity: '', price_usd: '', date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState({ action: 'buy', quantity: '', price_usd: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
   const [error, setError] = useState('');
 
   async function load() {
@@ -32,6 +32,7 @@ export default function TransactionHistoryPage() {
         price_usd: parseFloat(form.price_usd),
       });
       setShowAddTx(false);
+      setForm({ action: 'buy', quantity: '', price_usd: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
       load();
     } catch (err) { setError(err.message); }
   }
@@ -43,7 +44,12 @@ export default function TransactionHistoryPage() {
       <button onClick={() => navigate('/')} style={styles.backBtn}>← Back to Dashboard</button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Transaction History</h2>
-        <button onClick={() => setShowAddTx(!showAddTx)} style={styles.addBtn}>+ Add Transaction</button>
+        <button onClick={() => {
+          setShowAddTx(v => {
+            if (v) setForm({ action: 'buy', quantity: '', price_usd: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
+            return !v;
+          });
+        }} style={styles.addBtn}>+ Add Transaction</button>
       </div>
 
       {showAddTx && (
@@ -55,6 +61,14 @@ export default function TransactionHistoryPage() {
           <input placeholder="Quantity" type="number" step="any" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} required style={styles.inp} />
           <input placeholder="Price (USD)" type="number" step="any" value={form.price_usd} onChange={e => setForm(f => ({ ...f, price_usd: e.target.value }))} required style={styles.inp} />
           <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required style={styles.inp} />
+          <input
+            placeholder="Remarks / reason (optional)"
+            type="text"
+            maxLength={500}
+            value={form.remarks}
+            onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))}
+            style={styles.inp}
+          />
           {error && <span style={{ color: 'var(--pnl-down)' }}>{error}</span>}
           <button type="submit" style={styles.submitBtn}>Save</button>
         </form>
@@ -73,7 +87,7 @@ export default function TransactionHistoryPage() {
             </thead>
             <tbody>
               {transactions.map(tx => (
-                <tr key={tx.id}>
+                <tr key={tx.id} title={tx.remarks || undefined}>
                   <td style={styles.td}>{tx.date}</td>
                   <td style={{
                     ...styles.td,
