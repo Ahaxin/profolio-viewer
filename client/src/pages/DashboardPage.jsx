@@ -6,6 +6,7 @@ import SummaryBar from '../components/SummaryBar';
 import AssetTable from '../components/AssetTable';
 import AddAssetModal from '../components/AddAssetModal';
 import AddValuationModal from '../components/AddValuationModal';
+import * as XLSX from 'xlsx';
 
 export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState(null);
@@ -50,6 +51,28 @@ export default function DashboardPage() {
     navigate('/login');
   }
 
+  async function exportToExcel() {
+    const data = await api.exportTransactions();
+    if (!data) return; // 401 — apiFetch already redirected to /login
+
+    const rows = data.map(t => ({
+      'Asset Name': t.asset_name,
+      'Symbol': t.symbol,
+      'Type': t.type,
+      'Date': t.date,
+      'Action': t.action,
+      'Quantity': t.quantity,
+      'Price (USD)': t.price_usd,
+      'Total (USD)': t.total_usd,
+      'Remarks': t.remarks ?? '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+    XLSX.writeFile(wb, `transactions-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   if (loading) return <div style={styles.center}>Loading…</div>;
 
   return (
@@ -58,6 +81,7 @@ export default function DashboardPage() {
         <h1 style={styles.heading}>Portfolio</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button onClick={loadPortfolio} style={styles.btn}>Refresh</button>
+          <button onClick={exportToExcel} style={styles.btn}>Export to Excel</button>
           <button onClick={() => setShowAddAsset(true)} style={styles.btnPrimary}>+ Add Asset</button>
           <button onClick={toggleTheme} style={styles.btn} title="Toggle theme">
             {theme === 'dark' ? '☀️' : '🌙'}

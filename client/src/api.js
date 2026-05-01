@@ -38,6 +38,9 @@ export const api = {
   getTransactions: (assetId) =>
     apiFetch(`/api/transactions/${assetId}`),
 
+  exportTransactions: () =>
+    apiFetch('/api/transactions/export'),
+
   addValuation: (data) =>
     apiFetch('/api/flat-valuations', { method: 'POST', body: data }),
 
