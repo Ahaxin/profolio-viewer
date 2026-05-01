@@ -15,7 +15,7 @@ A new additive migration adds `remarks TEXT` (nullable) to the `transactions` ta
 ALTER TABLE transactions ADD COLUMN remarks TEXT;
 ```
 
-This runs after the existing `CREATE TABLE IF NOT EXISTS` block in `server/db/migrations.js`. The migration must be guarded so it only runs once (check if column already exists before altering).
+This runs after the existing `CREATE TABLE IF NOT EXISTS` block in `server/db/migrations.js`. The migration must be guarded with a `PRAGMA table_info` check so it is idempotent (safe to run on every startup).
 
 **Guard pattern for SQLite:**
 ```js
@@ -25,14 +25,24 @@ if (!cols.some(c => c.name === 'remarks')) {
 }
 ```
 
+**Important:** The guard runs on **every app startup**, against both existing and freshly-created databases. On a brand-new DB, `CREATE TABLE IF NOT EXISTS` creates the table without the `remarks` column, then the guard immediately fires and adds it. On an already-upgraded DB, the guard finds the column and skips the `ALTER`. This dual-path behavior ensures the column is always present in all environments — production, development, and the in-memory test DB created by `beforeAll` in the test suite.
+
 ## API
 
 ### `POST /api/transactions`
 
 - Accepts an optional `remarks` field in the request body (string, max 500 chars)
 - Not required — omitting it or sending `null`/`''` is valid
-- Included in the `INSERT INTO transactions` statement
+- `remarks` must be extracted by name from `req.body` alongside the existing destructured fields
 - Validation: if provided, must be a string ≤ 500 characters
+- The INSERT statement must be updated to explicitly include `remarks`:
+
+```sql
+INSERT INTO transactions (asset_id, action, quantity, price_usd, date, remarks)
+VALUES (?, ?, ?, ?, ?, ?)
+```
+
+The `.run(...)` call passes `remarks || null` as the sixth argument. Omitting it from the argument list would cause a runtime binding mismatch error.
 
 ### `GET /api/transactions/:assetId`
 
@@ -62,6 +72,7 @@ if (!cols.some(c => c.name === 'remarks')) {
 | `server/db/migrations.js` | Add guarded `ALTER TABLE` for `remarks` column |
 | `server/routes/transactions.js` | Accept `remarks` in POST body, include in INSERT |
 | `client/src/pages/TransactionHistoryPage.jsx` | Add remarks input to form, add `title` to table rows |
+| `server/tests/transactions.test.js` | Add test: POST with `remarks` stores and is returned by GET |
 
 ## Out of Scope
 
