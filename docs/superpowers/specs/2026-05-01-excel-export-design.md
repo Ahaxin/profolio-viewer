@@ -54,7 +54,16 @@ ORDER BY t.date DESC, t.created_at DESC
 
 **Empty portfolio:** Returns `[]` — the client handles this gracefully (downloads an empty sheet).
 
-**Added to:** `server/routes/transactions.js` as a new `router.get('/export', ...)` handler. Must be registered **before** `router.get('/:assetId', ...)` to avoid Express matching `export` as an `assetId`.
+**Added to:** `server/routes/transactions.js` as a new `router.get('/export', ...)` handler. **Must be registered before `router.get('/:assetId', ...)`** — Express matches routes in order, so if `/:assetId` comes first, the string `"export"` will be treated as an asset ID and the route will never be reached.
+
+The final route order in `transactions.js` must be:
+
+```js
+router.get('/export', (req, res) => { /* ... */ });   // 1. static path first
+router.get('/:assetId', (req, res) => { /* ... */ }); // 2. dynamic param second
+```
+
+**Note on user scoping:** The `assets` table has no `user_id` column — assets are not scoped per user in this schema (consistent with all other routes). The export query returns all assets/transactions in the database, which is the intended behaviour for a single-user personal portfolio app.
 
 ## Client
 
@@ -92,7 +101,7 @@ Add an `exportToExcel()` async function:
    ```
 4. If the fetch throws (e.g. 401), navigate to `/login` — same pattern as other pages
 
-Add an **Export to Excel** button in the dashboard header area, styled with `styles.secondaryBtn` (same style as other secondary actions on the page). Placed alongside existing header controls.
+Add an **Export to Excel** button in the dashboard header area, styled with `styles.btn` (the secondary button style already defined in the page). Placed alongside existing header controls.
 
 ## Files Changed
 
@@ -102,7 +111,7 @@ Add an **Export to Excel** button in the dashboard header area, styled with `sty
 | `client/src/api.js` | Add `exportTransactions()` method |
 | `client/src/pages/DashboardPage.jsx` | Add `exportToExcel()` function and Export button |
 | `client/package.json` | Add `xlsx` dependency |
-| `server/tests/transactions.test.js` | Add test for `GET /api/transactions/export` |
+| `server/tests/transactions.test.js` | Add tests for `GET /api/transactions/export`: (1) returns 200 with an array when authenticated; (2) `total_usd` equals `quantity * price_usd`; (3) response includes `asset_name` and `symbol`; (4) returns 401 without auth cookie |
 
 ## Out of Scope
 
