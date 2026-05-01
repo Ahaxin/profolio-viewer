@@ -24,7 +24,9 @@ Browser → Vercel (React static files)
 
 **`Dockerfile`** (at repo root)
 
-This is an npm workspace project (`package.json` has `"workspaces": ["server", "client"]`). The Dockerfile must copy the root lockfile and install only the server workspace to get `better-sqlite3` native bindings built correctly for Linux:
+This is an npm workspace project (`package.json` has `"workspaces": ["server", "client"]`). The Dockerfile must copy the root lockfile and install only the server workspace to get `better-sqlite3` native bindings built correctly for Linux.
+
+> **npm workspace note:** `npm ci --workspace=server` resolves against the root lockfile and requires all workspace `package.json` files to be present. `client/package.json` must be copied even though client source is excluded by `.dockerignore`. The root has no production dependencies of its own — only `concurrently` in devDependencies — so `--omit=dev` covers it.
 
 ```dockerfile
 FROM node:20-slim
@@ -37,6 +39,8 @@ WORKDIR /app
 # Copy workspace root manifests first (for layer caching)
 COPY package.json package-lock.json ./
 COPY server/package.json ./server/
+# npm workspaces needs all member package.json files to resolve the graph
+COPY client/package.json ./client/
 
 # Install server workspace deps only, production only
 RUN npm ci --workspace=server --omit=dev
@@ -51,9 +55,14 @@ CMD ["node", "index.js"]
 
 **`.dockerignore`** (at repo root)
 
+Exclude client source but allow `client/package.json` (required by npm workspaces during `npm ci`):
+
 ```
 node_modules/
-client/
+client/src/
+client/public/
+client/dist/
+client/node_modules/
 docs/
 .env
 .env.*
