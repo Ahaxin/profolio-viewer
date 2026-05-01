@@ -30,6 +30,20 @@ function createTransactionsRouter(db) {
     res.status(201).json({ id: result.lastInsertRowid });
   });
 
+  // IMPORTANT: /export must be registered BEFORE /:assetId
+  router.get('/export', (req, res) => {
+    const rows = db.prepare(`
+      SELECT t.id, t.date, t.action, t.quantity, t.price_usd,
+             (t.quantity * t.price_usd) AS total_usd,
+             t.remarks,
+             a.name AS asset_name, a.symbol, a.type
+      FROM transactions t
+      JOIN assets a ON t.asset_id = a.id
+      ORDER BY t.date DESC, t.created_at DESC
+    `).all();
+    res.json(rows);
+  });
+
   router.get('/:assetId', (req, res) => {
     const asset = db.prepare('SELECT id FROM assets WHERE id = ?').get(req.params.assetId);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });

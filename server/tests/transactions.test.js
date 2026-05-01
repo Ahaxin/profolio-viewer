@@ -78,3 +78,39 @@ describe('GET /api/transactions/:assetId', () => {
     expect(dates).toEqual([...dates].sort((a, b) => b.localeCompare(a)));
   });
 });
+
+describe('GET /api/transactions/export', () => {
+  let exportTxId;
+
+  beforeAll(() => {
+    const r = db.prepare(
+      'INSERT INTO transactions (asset_id, action, quantity, price_usd, date) VALUES (?,?,?,?,?)'
+    ).run(assetId, 'buy', 3, 200, '2024-06-01');
+    exportTxId = r.lastInsertRowid;
+  });
+
+  it('returns 200 with an array when authenticated', async () => {
+    const res = await request(app).get('/api/transactions/export').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('includes asset_name and symbol in each row', async () => {
+    const res = await request(app).get('/api/transactions/export').set('Cookie', cookie);
+    const row = res.body.find(r => r.id === exportTxId);
+    expect(row.asset_name).toBe('Apple');
+    expect(row.symbol).toBe('AAPL');
+  });
+
+  it('computes total_usd as quantity * price_usd', async () => {
+    const res = await request(app).get('/api/transactions/export').set('Cookie', cookie);
+    const row = res.body.find(r => r.id === exportTxId);
+    expect(row.total_usd).toBeCloseTo(3 * 200);
+  });
+
+  it('returns 401 without auth cookie', async () => {
+    const res = await request(app).get('/api/transactions/export');
+    expect(res.status).toBe(401);
+  });
+});
