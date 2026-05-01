@@ -200,3 +200,5 @@ Starting fresh — no migration needed. On first boot, `server/index.js` runs mi
 | `.dockerignore` | Create |
 | `fly.toml` | Create |
 | `client/vercel.json` | Create |
+| `server/routes/auth.js` | Modify — `sameSite: 'strict'` → `'lax'` in both `/login` and `/logout` handlers |
+| `railway.toml` | Delete — dead config from previous Railway deployment |
