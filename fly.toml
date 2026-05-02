@@ -1,5 +1,5 @@
-app = "<your-app-name>"
-primary_region = "<your-region>"
+app = "profolio-viewer"
+primary_region = "ams"
 
 [build]
 
@@ -16,6 +16,7 @@ primary_region = "<your-region>"
     path = "/api/health"
     interval = "10s"
     timeout = "5s"
+    grace_period = "10s"
 
 [[mounts]]
   source = "portfolio_data"

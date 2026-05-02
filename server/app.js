@@ -1,6 +1,5 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const path = require('path');
 const { verifyJwt } = require('./middleware/auth');
 const { createAuthRouter } = require('./routes/auth');
 const { createPortfolioRouter } = require('./routes/portfolio');
@@ -28,15 +27,6 @@ function createApp(db) {
   app.use('/api/transactions', createTransactionsRouter(db));
   app.use('/api/prices', createPricesRouter(db));
   app.use('/api/flat-valuations', createFlatValuationsRouter(db));
-
-  // Serve built React app in production
-  if (process.env.NODE_ENV === 'production') {
-    const clientDist = path.join(__dirname, '../client/dist');
-    app.use(express.static(clientDist));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(clientDist, 'index.html'));
-    });
-  }
 
   return app;
 }
