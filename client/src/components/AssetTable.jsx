@@ -163,7 +163,6 @@ function AssetRow({ asset, hovered, onHover, onNavigate, onDelete, onEdit, onAdd
         )}
         <button style={{ ...styles.actionBtn, color: 'var(--pnl-down)', borderColor: 'var(--pnl-down)' }}
           onClick={() => onDelete(asset.id)}>Del</button>
-        <button style={styles.actionBtn} onClick={() => onEdit(asset)}>Edit</button>
       </td>
     </tr>
   );
