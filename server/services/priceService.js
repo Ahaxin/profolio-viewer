@@ -1,5 +1,8 @@
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+const { fetchStockPrices } = require('./yahooFinance');
+const { fetchCryptoPrices } = require('./coinGecko');
+
 /**
  * Get prices for a list of assets, using cache where fresh.
  * @param {object} db — better-sqlite3 instance
@@ -34,7 +37,6 @@ async function getPortfolioPrices(db, assets) {
   // Batch fetch stale stocks
   if (staleStocks.length) {
     try {
-      const { fetchStockPrices } = await import('./yahooFinance');
       const fresh = await fetchStockPrices(staleStocks);
       _updateCache(db, fresh, result);
     } catch (err) {
@@ -45,7 +47,6 @@ async function getPortfolioPrices(db, assets) {
   // Batch fetch stale crypto
   if (staleCrypto.length) {
     try {
-      const { fetchCryptoPrices } = await import('./coinGecko');
       const fresh = await fetchCryptoPrices(staleCrypto);
       _updateCache(db, fresh, result);
     } catch (err) {
