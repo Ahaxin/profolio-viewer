@@ -15,7 +15,7 @@ async function fetchStockPrices(symbols) {
     const normalized = String(rawSymbol || '').toUpperCase().trim();
     const candidates = [normalized];
 
-    // Support user-entered composite symbols like "MSFT/GOOG" or quote symbols like "BTC/USD".
+    // Support quote-pair symbols like "BTC/USD" — try the full string first, then each part.
     if (normalized.includes('/')) {
       candidates.push(...normalized.split('/').map(s => s.trim()).filter(Boolean));
     }

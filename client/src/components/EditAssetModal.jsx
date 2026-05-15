@@ -53,7 +53,7 @@ export default function EditAssetModal({ asset, onClose, onSuccess }) {
 }
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 };
-const modal = { background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '10px', width: '380px' };
+const modal = { background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '10px', width: '380px', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)' };
 const form = { display: 'flex', flexDirection: 'column', gap: '0.75rem' };
 const label = { fontSize: '0.875rem', color: 'var(--text-secondary)' };
 const input = { padding: '8px', border: '1px solid var(--input-border)', borderRadius: '6px', fontSize: '1rem', background: 'var(--input-bg)', color: 'var(--input-text)' };
