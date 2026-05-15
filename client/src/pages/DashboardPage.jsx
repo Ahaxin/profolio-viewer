@@ -6,6 +6,7 @@ import SummaryBar from '../components/SummaryBar';
 import AssetTable from '../components/AssetTable';
 import AddAssetModal from '../components/AddAssetModal';
 import AddValuationModal from '../components/AddValuationModal';
+import EditAssetModal from '../components/EditAssetModal';
 import * as XLSX from 'xlsx';
 
 export default function DashboardPage() {
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [showAddAsset, setShowAddAsset] = useState(false);
   const [valuationAsset, setValuationAsset] = useState(null);
+  const [editingAsset, setEditingAsset] = useState(null);
   const navigate = useNavigate();
   const [theme, toggleTheme] = useTheme();
 
@@ -103,6 +105,7 @@ export default function DashboardPage() {
             assets={portfolio.assets}
             onDelete={handleDelete}
             onAddValuation={setValuationAsset}
+            onEdit={setEditingAsset}
           />
         </>
       )}
@@ -119,6 +122,14 @@ export default function DashboardPage() {
           asset={valuationAsset}
           onClose={() => setValuationAsset(null)}
           onSuccess={() => { setValuationAsset(null); loadPortfolio(); }}
+        />
+      )}
+
+      {editingAsset && (
+        <EditAssetModal
+          asset={editingAsset}
+          onClose={() => setEditingAsset(null)}
+          onSuccess={() => { setEditingAsset(null); loadPortfolio(); }}
         />
       )}
     </div>

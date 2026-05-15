@@ -10,13 +10,31 @@ async function fetchStockPrices(symbols) {
   const { default: yahooFinance } = await import('yahoo-finance2');
 
   const results = {};
-  // yahoo-finance2 supports individual quotes; batch via Promise.allSettled
-  const quotes = await Promise.allSettled(
-    symbols.map(s => yahooFinance.quote(s, { fields: ['regularMarketPrice'] }))
-  );
-  quotes.forEach((result, i) => {
-    if (result.status === 'fulfilled' && result.value?.regularMarketPrice) {
-      results[symbols[i]] = result.value.regularMarketPrice;
+
+  async function fetchBestQuote(rawSymbol) {
+    const normalized = String(rawSymbol || '').toUpperCase().trim();
+    const candidates = [normalized];
+
+    // Support user-entered composite symbols like "MSFT/GOOG" or quote symbols like "BTC/USD".
+    if (normalized.includes('/')) {
+      candidates.push(...normalized.split('/').map(s => s.trim()).filter(Boolean));
+    }
+
+    for (const candidate of [...new Set(candidates)]) {
+      try {
+        const quote = await yahooFinance.quote(candidate, { fields: ['regularMarketPrice'] });
+        if (quote?.regularMarketPrice != null) return quote.regularMarketPrice;
+      } catch {
+        // Try next candidate.
+      }
+    }
+    return null;
+  }
+
+  const quotes = await Promise.all(symbols.map(fetchBestQuote));
+  quotes.forEach((price, i) => {
+    if (price != null) {
+      results[symbols[i]] = price;
     }
   });
   return results;

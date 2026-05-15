@@ -16,13 +16,20 @@ function PnlCell({ value, pct }) {
   );
 }
 
-export default function AssetTable({ assets, onDelete, onAddValuation }) {
+export default function AssetTable({ assets, onDelete, onAddValuation, onEdit }) {
   const navigate = useNavigate();
   const [hoveredRow, setHoveredRow] = useState(null);
 
   if (!assets.length) {
     return <p style={{ color: 'var(--text-secondary)' }}>No assets yet. Click "Add Asset" to get started.</p>;
   }
+
+  const groupedAssets = Object.values(assets.reduce((acc, asset) => {
+    const key = asset.name.trim().toLowerCase();
+    if (!acc[key]) acc[key] = { name: asset.name, items: [] };
+    acc[key].items.push(asset);
+    return acc;
+  }, {})).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -35,7 +42,7 @@ export default function AssetTable({ assets, onDelete, onAddValuation }) {
           </tr>
         </thead>
         <tbody>
-          {assets.map(asset => (
+          {groupedAssets.flatMap(group => group.items.map((asset, index) => (
             <tr
               key={asset.id}
               style={{ ...styles.row, background: hoveredRow === asset.id ? 'var(--row-hover)' : 'transparent' }}
@@ -44,7 +51,21 @@ export default function AssetTable({ assets, onDelete, onAddValuation }) {
               onMouseLeave={() => setHoveredRow(null)}
             >
               <td style={styles.td}>
-                <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name}</div>
+                {index === 0 && (
+                  <>
+                    <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{group.name}</div>
+                    {group.items.length > 1 && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Total Qty: {group.items.reduce((sum, i) => sum + (i.net_quantity || 0), 0).toFixed(4)} | Avg Buy: ${(() => {
+                          const totalQty = group.items.reduce((sum, i) => sum + (i.net_quantity || 0), 0);
+                          if (!totalQty) return '—';
+                          const weighted = group.items.reduce((sum, i) => sum + ((i.avg_buy_price || 0) * (i.net_quantity || 0)), 0);
+                          return (weighted / totalQty).toFixed(2);
+                        })()}
+                      </div>
+                    )}
+                  </>
+                )}
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{asset.symbol}</div>
               </td>
               <td style={styles.td}>
@@ -83,9 +104,10 @@ export default function AssetTable({ assets, onDelete, onAddValuation }) {
                 >
                   Del
                 </button>
+                <button style={styles.actionBtn} onClick={() => onEdit(asset)}>Edit</button>
               </td>
             </tr>
-          ))}
+          )))}
         </tbody>
       </table>
     </div>
