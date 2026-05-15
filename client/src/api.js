@@ -32,6 +32,9 @@ export const api = {
   deleteAsset: (id) =>
     apiFetch(`/api/assets/${id}`, { method: 'DELETE' }),
 
+  updateAsset: (id, data) =>
+    apiFetch(`/api/assets/${id}`, { method: 'PUT', body: data }),
+
   addTransaction: (data) =>
     apiFetch('/api/transactions', { method: 'POST', body: data }),
 
