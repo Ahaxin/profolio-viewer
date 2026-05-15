@@ -144,13 +144,13 @@ function AssetRow({ asset, hovered, onHover, onNavigate, onDelete, onEdit, onAdd
       onMouseLeave={() => onHover(null)}
     >
       <td style={{ ...styles.td, paddingLeft: indent ? '28px' : undefined }}>
-        {!indent && (
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ display: 'inline-block', width: '14px', flexShrink: 0 }} />
-            <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {!indent && <span style={{ display: 'inline-block', width: '14px', flexShrink: 0 }} />}
+          <div>
+            {!indent && <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name}</div>}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: indent ? 0 : '2px' }}>{asset.symbol}</div>
           </div>
-        )}
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: indent ? 0 : '2px' }}>{asset.symbol}</div>
+        </div>
       </td>
       <td style={styles.td}><span style={styles.badge}>{asset.type}</span></td>
       <td style={styles.td}><strong style={{ color: 'var(--text-muted)' }}>{asset.symbol}</strong></td>
