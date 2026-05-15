@@ -85,12 +85,12 @@ export default function AssetTable({ assets, onDelete, onAddValuation, onEdit })
       <tr key={`grp-${key}`} style={{ ...styles.row, background: 'var(--bg-table-header)' }}
         onClick={() => toggleGroup(key)}>
         <td style={styles.td}>
-          <div style={{ fontWeight: '600', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>{isExpanded ? '▼' : '▶'}</span>
-            {name}
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
-              ({items.length})
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ display: 'inline-block', width: '14px', flexShrink: 0, fontSize: '0.65rem', opacity: 0.7 }}>
+              {isExpanded ? '▼' : '▶'}
             </span>
+            <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{name}</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '5px' }}>({items.length})</span>
           </div>
         </td>
         <td style={styles.td}><span style={styles.badge}>{items[0].type}</span></td>
@@ -144,7 +144,12 @@ function AssetRow({ asset, hovered, onHover, onNavigate, onDelete, onEdit, onAdd
       onMouseLeave={() => onHover(null)}
     >
       <td style={{ ...styles.td, paddingLeft: indent ? '28px' : undefined }}>
-        {!indent && <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name}</div>}
+        {!indent && (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ display: 'inline-block', width: '14px', flexShrink: 0 }} />
+            <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name}</div>
+          </div>
+        )}
         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: indent ? 0 : '2px' }}>{asset.symbol}</div>
       </td>
       <td style={styles.td}><span style={styles.badge}>{asset.type}</span></td>
