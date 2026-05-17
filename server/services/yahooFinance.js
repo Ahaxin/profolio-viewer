@@ -5,6 +5,21 @@ const HEADERS = {
   'Accept': 'application/json',
 };
 
+const SUFFIX_TO_CURRENCY = {
+  HK: 'HKD',  T: 'JPY',  L: 'GBp',  SS: 'CNY',  SZ: 'CNY',
+  TO: 'CAD',  AX: 'AUD', PA: 'EUR', DE: 'EUR',  AS: 'EUR',
+  SW: 'CHF',  KS: 'KRW', NS: 'INR', BO: 'INR',  SI: 'SGD',
+  ST: 'SEK',  OL: 'NOK', HE: 'EUR', BR: 'EUR',  MC: 'EUR',
+  MI: 'EUR',  TW: 'TWD',
+};
+
+function inferCurrencyFromSymbol(symbol) {
+  const dot = symbol.lastIndexOf('.');
+  if (dot < 0) return 'USD';
+  const suffix = symbol.slice(dot + 1).toUpperCase();
+  return SUFFIX_TO_CURRENCY[suffix] || 'USD';
+}
+
 async function fetchChart(host, candidate) {
   const url = `https://${host}/v8/finance/chart/${encodeURIComponent(candidate)}`;
   const res = await axios.get(url, {
@@ -12,18 +27,19 @@ async function fetchChart(host, candidate) {
     headers: HEADERS,
     timeout: 10000,
   });
-  const price = res.data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+  const meta = res.data?.chart?.result?.[0]?.meta;
+  const price = meta?.regularMarketPrice;
   if (price == null) {
     console.warn(`[yahooFinance] ${host}/${candidate}: response ok but no price in payload`);
+    return null;
   }
-  return price ?? null;
+  return { price, currency: meta?.currency || null };
 }
 
 /**
- * Fetch current prices for a list of stock symbols via Yahoo Finance v8 chart API.
- * Tries query1 then query2 as fallback (query1 is sometimes blocked on datacenter IPs).
+ * Fetch current prices and currencies for a list of stock symbols.
  * @param {string[]} symbols
- * @returns {Promise<Record<string, number>>} symbol -> price map
+ * @returns {Promise<Record<string, {price: number, currency: string}>>}
  */
 async function fetchStockPrices(symbols) {
   if (!symbols.length) return {};
@@ -38,9 +54,10 @@ async function fetchStockPrices(symbols) {
     for (const candidate of [...new Set(candidates)]) {
       for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
         try {
-          const price = await fetchChart(host, candidate);
-          if (price != null) {
-            results[symbol] = price;
+          const chart = await fetchChart(host, candidate);
+          if (chart) {
+            const currency = chart.currency || inferCurrencyFromSymbol(symbol);
+            results[symbol] = { price: chart.price, currency };
             return;
           }
         } catch (err) {
@@ -53,4 +70,4 @@ async function fetchStockPrices(symbols) {
   return results;
 }
 
-module.exports = { fetchStockPrices };
+module.exports = { fetchStockPrices, inferCurrencyFromSymbol };
