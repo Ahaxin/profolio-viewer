@@ -1,3 +1,14 @@
+vi.mock('../services/yahooFinance', () => ({
+  fetchStockPrices: vi.fn().mockResolvedValue({}),
+  inferCurrencyFromSymbol: vi.fn(sym => {
+    // mirror the real logic so the suffix detection still works in tests
+    const dot = sym.lastIndexOf('.');
+    if (dot < 0) return 'USD';
+    const map = { HK: 'HKD', T: 'JPY', L: 'GBp', SS: 'CNY' };
+    return map[sym.slice(dot + 1).toUpperCase()] || 'USD';
+  }),
+}));
+
 const request = require('supertest');
 const { createTestDb } = require('./setup');
 const { runMigrations } = require('../db/migrations');
@@ -35,6 +46,55 @@ describe('POST /api/assets', () => {
   it('rejects missing fields', async () => {
     const res = await request(app).post('/api/assets').set('Cookie', cookie).send({ type: 'stock' });
     expect(res.status).toBe(400);
+  });
+
+  it('seeds currency from symbol suffix on POST', async () => {
+    const res = await request(app).post('/api/assets').set('Cookie', cookie)
+      .send({ type: 'stock', symbol: '0700.HK', name: 'Tencent' });
+    expect(res.status).toBe(201);
+    expect(res.body.currency).toBe('HKD');
+  });
+
+  it('PATCH /api/assets/:id accepts comment and updates partially', async () => {
+    const ins = await request(app).post('/api/assets').set('Cookie', cookie)
+      .send({ type: 'stock', symbol: 'PATCHTEST1', name: 'PatchTest' });
+    const res = await request(app)
+      .patch(`/api/assets/${ins.body.id}`)
+      .set('Cookie', cookie)
+      .send({ comment: 'core holding' });
+    expect(res.status).toBe(200);
+    expect(res.body.comment).toBe('core holding');
+    expect(res.body.name).toBe('PatchTest');
+  });
+
+  it('PATCH /api/assets/:id can update name + comment together', async () => {
+    const ins = await request(app).post('/api/assets').set('Cookie', cookie)
+      .send({ type: 'stock', symbol: 'PATCHTEST2', name: 'PatchTest2' });
+    const res = await request(app)
+      .patch(`/api/assets/${ins.body.id}`)
+      .set('Cookie', cookie)
+      .send({ name: 'NewName', comment: 'cloud bet' });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('NewName');
+    expect(res.body.comment).toBe('cloud bet');
+  });
+
+  it('PATCH /api/assets/:id rejects comment > 500 chars', async () => {
+    const ins = await request(app).post('/api/assets').set('Cookie', cookie)
+      .send({ type: 'stock', symbol: 'PATCHTEST3', name: 'PatchTest3' });
+    const res = await request(app)
+      .patch(`/api/assets/${ins.body.id}`)
+      .set('Cookie', cookie)
+      .send({ comment: 'x'.repeat(501) });
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH /api/assets/:id returns 404 for unknown asset', async () => {
+    const res = await request(app)
+      .patch(`/api/assets/99999`)
+      .set('Cookie', cookie)
+      .send({ name: 'X' });
+    expect(res.status).toBe(404);
   });
 });
 
