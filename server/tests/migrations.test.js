@@ -53,3 +53,49 @@ describe('migrations', () => {
     expect(cols.some(c => c.name === 'remarks')).toBe(true);
   });
 });
+
+describe('migrations — portfolio improvements', () => {
+  it('adds currency column to assets defaulting to USD', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    const cols = db.prepare("PRAGMA table_info(assets)").all();
+    const currency = cols.find(c => c.name === 'currency');
+    expect(currency).toBeDefined();
+    expect(currency.dflt_value).toBe("'USD'");
+    expect(currency.notnull).toBe(1);
+  });
+
+  it('adds comment column to assets (nullable)', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    const cols = db.prepare("PRAGMA table_info(assets)").all();
+    expect(cols.some(c => c.name === 'comment')).toBe(true);
+  });
+
+  it('adds price_native column to transactions (nullable)', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    const cols = db.prepare("PRAGMA table_info(transactions)").all();
+    expect(cols.some(c => c.name === 'price_native')).toBe(true);
+  });
+
+  it('creates fx_rates_cache table', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fx_rates_cache'").get();
+    expect(row).toBeDefined();
+  });
+
+  it('creates crypto_id_map table', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='crypto_id_map'").get();
+    expect(row).toBeDefined();
+  });
+
+  it('is idempotent (running twice does not fail)', () => {
+    const db = createTestDb();
+    runMigrations(db);
+    expect(() => runMigrations(db)).not.toThrow();
+  });
+});

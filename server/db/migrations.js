@@ -40,12 +40,36 @@ function runMigrations(db) {
       date DATE NOT NULL,
       created_at DATETIME DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS fx_rates_cache (
+      currency TEXT PRIMARY KEY,
+      rate_usd REAL NOT NULL,
+      updated_at DATETIME NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS crypto_id_map (
+      symbol TEXT PRIMARY KEY,
+      coin_gecko_id TEXT,
+      resolved_at DATETIME NOT NULL
+    );
   `);
 
   // Additive migration: remarks column on transactions
   const txCols = db.prepare("PRAGMA table_info(transactions)").all();
   if (!txCols.some(c => c.name === 'remarks')) {
     db.exec("ALTER TABLE transactions ADD COLUMN remarks TEXT");
+  }
+  if (!txCols.some(c => c.name === 'price_native')) {
+    db.exec("ALTER TABLE transactions ADD COLUMN price_native REAL");
+  }
+
+  // Additive migration: currency + comment columns on assets
+  const assetCols = db.prepare("PRAGMA table_info(assets)").all();
+  if (!assetCols.some(c => c.name === 'currency')) {
+    db.exec("ALTER TABLE assets ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'");
+  }
+  if (!assetCols.some(c => c.name === 'comment')) {
+    db.exec("ALTER TABLE assets ADD COLUMN comment TEXT");
   }
 }
 
