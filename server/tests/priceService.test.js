@@ -73,6 +73,19 @@ describe('getPortfolioPrices', () => {
     expect(result['AAPL'].stale).toBe(true);
   });
 
+  it('keeps fresh native price with null USD when FX fails on fetch', async () => {
+    const db = createTestDb();
+    runMigrations(db);
+    fetchStockPricesSpy.mockResolvedValue({ '0700.HK': { price: 320, currency: 'HKD' } });
+    getUsdRateSpy.mockRejectedValue(new Error('FX unavailable'));
+
+    const result = await getPortfolioPrices(db, [{ symbol: '0700.HK', type: 'stock', currency: 'HKD' }]);
+    expect(result['0700.HK'].price_native).toBe(320);
+    expect(result['0700.HK'].price_usd).toBeNull();
+    expect(result['0700.HK'].currency).toBe('HKD');
+    expect(result['0700.HK'].stale).toBe(true);
+  });
+
   it('skips price fetch for flat/other assets', async () => {
     const db = createTestDb();
     runMigrations(db);

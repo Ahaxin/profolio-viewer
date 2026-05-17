@@ -75,6 +75,13 @@ async function getPortfolioPrices(db, assets) {
           };
         } catch (err) {
           console.error(`[priceService] FX fail for ${symbol} (${nativeCurrency}): ${err.message}`);
+          result[symbol] = {
+            price_usd: null,
+            price_native: info.price,
+            currency: nativeCurrency,
+            stale: true,
+            updated_at: new Date().toISOString(),
+          };
         }
       }
       _persistUsdCache(db, usdMap);
