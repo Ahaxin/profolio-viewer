@@ -6,8 +6,11 @@ import SummaryBar from '../components/SummaryBar';
 import AssetTable from '../components/AssetTable';
 import AddAssetModal from '../components/AddAssetModal';
 import AddValuationModal from '../components/AddValuationModal';
-import EditAssetModal from '../components/EditAssetModal';
+import ModifyAssetModal from '../components/ModifyAssetModal';
+import FilterBar from '../components/FilterBar';
 import * as XLSX from 'xlsx';
+
+const ALL_TYPES = ['stock', 'crypto', 'flat', 'other'];
 
 export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState(null);
@@ -15,7 +18,9 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [showAddAsset, setShowAddAsset] = useState(false);
   const [valuationAsset, setValuationAsset] = useState(null);
-  const [editingAsset, setEditingAsset] = useState(null);
+  const [modifyingAsset, setModifyingAsset] = useState(null);
+  const [filterTypes, setFilterTypes] = useState(new Set(ALL_TYPES));
+  const [sort, setSort] = useState({ col: null, dir: null });
   const navigate = useNavigate();
   const [theme, toggleTheme] = useTheme();
 
@@ -38,6 +43,22 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [loadPortfolio]);
 
+  function toggleType(t) {
+    setFilterTypes(prev => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+  }
+
+  function handleSortChange(col) {
+    setSort(prev => {
+      if (prev.col !== col) return { col, dir: 'asc' };
+      if (prev.dir === 'asc')  return { col, dir: 'desc' };
+      return { col: null, dir: null };
+    });
+  }
+
   async function handleDelete(assetId) {
     if (!confirm('Delete this asset and all its transactions?')) return;
     try {
@@ -55,20 +76,20 @@ export default function DashboardPage() {
 
   async function exportToExcel() {
     const data = await api.exportTransactions();
-    if (!data) return; // 401 — apiFetch already redirected to /login
-
+    if (!data) return;
     const rows = data.map(t => ({
       'Asset Name': t.asset_name,
       'Symbol': t.symbol,
       'Type': t.type,
+      'Currency': t.currency || 'USD',
       'Date': t.date,
       'Action': t.action,
       'Quantity': t.quantity,
+      'Price (Native)': t.price_native ?? t.price_usd,
       'Price (USD)': t.price_usd,
       'Total (USD)': t.total_usd,
       'Remarks': t.remarks ?? '',
     }));
-
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
@@ -101,11 +122,15 @@ export default function DashboardPage() {
             totalPnlUsd={portfolio.total_pnl_usd}
             totalPnlPct={portfolio.total_pnl_pct}
           />
+          <FilterBar filterTypes={filterTypes} onToggle={toggleType} />
           <AssetTable
             assets={portfolio.assets}
             onDelete={handleDelete}
             onAddValuation={setValuationAsset}
-            onEdit={setEditingAsset}
+            onModify={setModifyingAsset}
+            filterTypes={filterTypes}
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </>
       )}
@@ -125,11 +150,11 @@ export default function DashboardPage() {
         />
       )}
 
-      {editingAsset && (
-        <EditAssetModal
-          asset={editingAsset}
-          onClose={() => setEditingAsset(null)}
-          onSuccess={() => { setEditingAsset(null); loadPortfolio(); }}
+      {modifyingAsset && (
+        <ModifyAssetModal
+          asset={modifyingAsset}
+          onClose={() => setModifyingAsset(null)}
+          onSuccess={() => { setModifyingAsset(null); loadPortfolio(); }}
         />
       )}
     </div>
@@ -140,22 +165,7 @@ const styles = {
   page: { maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
   heading: { margin: 0, fontSize: '1.75rem', color: 'var(--accent)', letterSpacing: '0.05em' },
-  btn: {
-    padding: '8px 16px',
-    border: '1px solid var(--btn-secondary-border)',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    background: 'var(--btn-secondary-bg)',
-    color: 'var(--btn-secondary-text)',
-  },
-  btnPrimary: {
-    padding: '8px 16px',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    background: 'var(--btn-primary-bg)',
-    color: 'var(--btn-primary-text)',
-    fontWeight: '600',
-  },
+  btn: { padding: '8px 16px', border: '1px solid var(--btn-secondary-border)', borderRadius: '6px', cursor: 'pointer', background: 'var(--btn-secondary-bg)', color: 'var(--btn-secondary-text)' },
+  btnPrimary: { padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', fontWeight: '600' },
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' },
 };
