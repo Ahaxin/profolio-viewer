@@ -35,8 +35,14 @@ export const api = {
   updateAsset: (id, data) =>
     apiFetch(`/api/assets/${id}`, { method: 'PUT', body: data }),
 
+  patchAsset: (id, data) =>
+    apiFetch(`/api/assets/${id}`, { method: 'PATCH', body: data }),
+
   addTransaction: (data) =>
     apiFetch('/api/transactions', { method: 'POST', body: data }),
+
+  updateTransaction: (id, data) =>
+    apiFetch(`/api/transactions/${id}`, { method: 'PATCH', body: data }),
 
   getTransactions: (assetId) =>
     apiFetch(`/api/transactions/${assetId}`),
@@ -46,6 +52,9 @@ export const api = {
 
   addValuation: (data) =>
     apiFetch('/api/flat-valuations', { method: 'POST', body: data }),
+
+  updateValuation: (id, data) =>
+    apiFetch(`/api/flat-valuations/${id}`, { method: 'PATCH', body: data }),
 
   getPrice: (symbol, type) =>
     apiFetch(`/api/prices/${symbol}?type=${type}`),
