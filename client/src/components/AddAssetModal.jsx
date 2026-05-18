@@ -68,9 +68,14 @@ export default function AddAssetModal({ onClose, onSuccess }) {
               <Field label="Quantity">
                 <input type="number" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} style={input} />
               </Field>
-              <Field label="Price per unit (USD)">
+              <Field label="Price per unit">
                 <input type="number" step="any" value={price} onChange={e => setPrice(e.target.value)} style={input} />
               </Field>
+              {type === 'stock' && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '-4px 0 0' }}>
+                  For non-US stocks, enter the price in the local currency. The currency is detected from the symbol (e.g. .HK → HKD).
+                </p>
+              )}
             </>
           )}
 
