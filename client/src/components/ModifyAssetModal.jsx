@@ -140,7 +140,7 @@ function Field({ label, children }) {
 }
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 };
-const modal = { background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '10px', width: '420px', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)' };
+const modal = { background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.25rem', borderRadius: '10px', width: 'min(420px, 92vw)', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)', boxSizing: 'border-box' };
 const form = { display: 'flex', flexDirection: 'column', gap: '0.75rem' };
 const input = { padding: '8px', border: '1px solid var(--input-border)', borderRadius: '6px', fontSize: '1rem', background: 'var(--input-bg)', color: 'var(--input-text)' };
 const submitBtn = { padding: '8px 20px', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' };

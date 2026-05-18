@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatNative, formatUsd } from '../format';
+import { useIsMobile } from '../useIsMobile';
 
 function PnlCell({ value, pct, style }) {
   if (value == null) return <td style={{ ...styles.td, ...style }}>—</td>;
@@ -78,6 +79,7 @@ export default function AssetTable({
   onSortChange,
 }) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [hoveredRow, setHoveredRow] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
@@ -210,6 +212,22 @@ export default function AssetTable({
     return <span style={{ marginLeft: '4px', fontSize: '0.65rem' }}>{sort.dir === 'desc' ? '▼' : '▲'}</span>;
   }
 
+  if (isMobile) {
+    return (
+      <MobileCardList
+        groups={grouped}
+        expandedGroups={expandedGroups}
+        toggleGroup={toggleGroup}
+        onNavigate={navigate}
+        onDelete={onDelete}
+        onModify={onModify}
+        onAddValuation={onAddValuation}
+        sort={sort}
+        onSortChange={onSortChange}
+      />
+    );
+  }
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -281,6 +299,196 @@ function AssetRow({ asset, hovered, onHover, onNavigate, onDelete, onModify, onA
     </tr>
   );
 }
+
+const SORTABLE_COLS = COLUMNS.filter(c => c.sortable);
+
+function MobileCardList({ groups, expandedGroups, toggleGroup, onNavigate, onDelete, onModify, onAddValuation, sort, onSortChange }) {
+  const sortCol = sort?.col ?? '';
+  const sortDir = sort?.dir ?? null;
+
+  function handleColChange(e) {
+    const col = e.target.value;
+    if (onSortChange && col && sort?.col !== col) onSortChange(col);
+  }
+
+  function flipDir() {
+    if (onSortChange && sort?.col) onSortChange(sort.col);
+  }
+
+  return (
+    <div>
+      {onSortChange && (
+        <div style={mobileStyles.sortBar}>
+          <label style={mobileStyles.sortLabel}>Sort:</label>
+          <select value={sortCol} onChange={handleColChange} style={mobileStyles.sortSelect}>
+            <option value="" disabled>Choose…</option>
+            {SORTABLE_COLS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          {sortCol && (
+            <button type="button" onClick={flipDir} style={mobileStyles.dirBtn}>
+              {sortDir === 'desc' ? '▼ desc' : sortDir === 'asc' ? '▲ asc' : '— off'}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div style={mobileStyles.list}>
+        {groups.map(g => {
+          const isMulti = g.items.length > 1;
+          const isExpanded = expandedGroups.has(g.key);
+
+          if (!isMulti) {
+            return (
+              <MobileCard
+                key={g.items[0].id}
+                asset={g.items[0]}
+                onNavigate={onNavigate}
+                onDelete={onDelete}
+                onModify={onModify}
+                onAddValuation={onAddValuation}
+              />
+            );
+          }
+
+          const groupHasComment = g.items.some(i => i.comment);
+          const groupComments = g.items.filter(i => i.comment).map(i => `• ${i.comment}`).join('\n');
+
+          return (
+            <div key={`grp-${g.key}`}>
+              <div
+                style={{ ...mobileStyles.card, ...mobileStyles.groupCard }}
+                onClick={() => toggleGroup(g.key)}
+              >
+                <div style={mobileStyles.cardHeader}>
+                  <div style={mobileStyles.cardTitle}>
+                    <span style={{ fontSize: '0.7rem', opacity: 0.7, marginRight: '6px' }}>{isExpanded ? '▼' : '▶'}</span>
+                    {g.name}
+                    <span style={mobileStyles.groupCount}>({g.items.length})</span>
+                    {groupHasComment && <CommentIcon comment={groupComments} />}
+                  </div>
+                  <span style={mobileStyles.badge}>{g.type}</span>
+                </div>
+                <div style={mobileStyles.metrics}>
+                  <Metric label="Qty" value={g.totalQty.toFixed(4)} />
+                  <Metric label="Price" value={g.currentPriceNative != null ? formatNative(g.currentPriceNative, g.currency) : '—'} />
+                  <Metric label="Value" value={g.totalValue > 0 ? formatUsd(g.totalValue) : '—'} />
+                  <PnlMetric value={g.totalPnl} pct={g.totalPnlPct} />
+                </div>
+              </div>
+              {isExpanded && g.items.map(asset => (
+                <MobileCard
+                  key={asset.id}
+                  asset={asset}
+                  onNavigate={onNavigate}
+                  onDelete={onDelete}
+                  onModify={onModify}
+                  onAddValuation={onAddValuation}
+                  indent
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MobileCard({ asset, onNavigate, onDelete, onModify, onAddValuation, indent }) {
+  const currency = asset.currency || 'USD';
+  const currentNative = asset.current_price_native ?? asset.current_price;
+
+  return (
+    <div
+      style={{ ...mobileStyles.card, ...(indent ? mobileStyles.cardIndent : null) }}
+      onClick={() => onNavigate(`/assets/${asset.id}`)}
+    >
+      <div style={mobileStyles.cardHeader}>
+        <div style={mobileStyles.cardTitle}>
+          {asset.name}
+          <CommentIcon comment={asset.comment} />
+        </div>
+        <span style={mobileStyles.badge}>{asset.type}</span>
+      </div>
+      <div style={mobileStyles.cardSubtitle}>{asset.symbol}</div>
+      <div style={mobileStyles.metrics}>
+        <Metric label="Qty" value={asset.net_quantity != null ? asset.net_quantity : '—'} />
+        <Metric
+          label="Price"
+          value={currentNative != null ? formatNative(currentNative, currency) : '—'}
+          stale={asset.price_stale}
+        />
+        <Metric label="Value" value={asset.current_value != null ? formatUsd(asset.current_value) : '—'} />
+        <PnlMetric value={asset.pnl_usd} pct={asset.pnl_pct} />
+      </div>
+      <div style={mobileStyles.actions} onClick={e => e.stopPropagation()}>
+        {(asset.type === 'flat' || asset.type === 'other') && (
+          <button style={mobileStyles.actionBtn} onClick={() => onAddValuation(asset)}>+ Val</button>
+        )}
+        <button style={mobileStyles.actionBtn} onClick={() => onModify(asset)}>Modify</button>
+        <button style={{ ...mobileStyles.actionBtn, color: 'var(--pnl-down)', borderColor: 'var(--pnl-down)' }}
+          onClick={() => onDelete(asset.id)}>Del</button>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value, stale }) {
+  return (
+    <div style={mobileStyles.metric}>
+      <div style={mobileStyles.metricLabel}>{label}</div>
+      <div style={mobileStyles.metricValue}>
+        {value}
+        {stale && <span title="Price may be outdated" style={{ color: '#f59e0b', marginLeft: '4px' }}>⚠</span>}
+      </div>
+    </div>
+  );
+}
+
+function PnlMetric({ value, pct }) {
+  if (value == null) {
+    return <Metric label="P&L" value="—" />;
+  }
+  const color = value >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)';
+  return (
+    <div style={mobileStyles.metric}>
+      <div style={mobileStyles.metricLabel}>P&amp;L</div>
+      <div style={{ ...mobileStyles.metricValue, color, fontWeight: 600 }}>
+        {value >= 0 ? '+' : ''}${value.toFixed(2)}
+        {pct != null && (
+          <span style={{ fontSize: '0.7rem', marginLeft: '4px', opacity: 0.85 }}>
+            ({pct >= 0 ? '+' : ''}{pct}%)
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const mobileStyles = {
+  sortBar: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' },
+  sortLabel: { fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  sortSelect: { padding: '6px 8px', border: '1px solid var(--input-border)', borderRadius: '6px', background: 'var(--input-bg)', color: 'var(--input-text)', fontSize: '0.85rem', flex: 1 },
+  dirBtn: { padding: '6px 10px', border: '1px solid var(--btn-secondary-border)', borderRadius: '6px', background: 'var(--btn-secondary-bg)', color: 'var(--btn-secondary-text)', fontSize: '0.75rem', cursor: 'pointer' },
+
+  list: { display: 'flex', flexDirection: 'column', gap: '0.5rem' },
+  card: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', cursor: 'pointer' },
+  cardIndent: { marginLeft: '1rem', background: 'transparent' },
+  groupCard: { background: 'var(--bg-table-header)' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' },
+  cardTitle: { fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap' },
+  cardSubtitle: { fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' },
+  groupCount: { fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '5px' },
+  badge: { background: 'var(--badge-bg)', color: 'var(--text-muted)', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0 },
+
+  metrics: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.6rem' },
+  metric: { display: 'flex', flexDirection: 'column' },
+  metricLabel: { fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  metricValue: { fontSize: '0.9rem', color: 'var(--text-primary)' },
+
+  actions: { display: 'flex', gap: '6px', marginTop: '0.75rem', flexWrap: 'wrap' },
+  actionBtn: { flex: '1 1 auto', minHeight: '36px', padding: '6px 10px', border: '1px solid var(--btn-secondary-border)', borderRadius: '6px', cursor: 'pointer', background: 'var(--btn-secondary-bg)', color: 'var(--btn-secondary-text)', fontSize: '0.8rem' },
+};
 
 const styles = {
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' },

@@ -117,12 +117,13 @@ const overlay = {
 const modal = {
   background: 'var(--bg-card)',
   border: '1px solid var(--border)',
-  padding: '1.5rem',
+  padding: '1.25rem',
   borderRadius: '10px',
-  width: '400px',
+  width: 'min(400px, 92vw)',
   maxHeight: '90vh',
   overflowY: 'auto',
   boxShadow: 'var(--shadow)',
+  boxSizing: 'border-box',
 };
 const form = { display: 'flex', flexDirection: 'column', gap: '1rem' };
 const input = {
