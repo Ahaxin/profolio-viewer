@@ -1,19 +1,19 @@
 # Portfolio Improvements — Progress Tracker
 
-**Last updated:** 2026-05-17
+**Last updated:** 2026-05-18
 **Spec:** `docs/superpowers/specs/2026-05-17-portfolio-improvements-design.md`
 **Plan:** `docs/superpowers/plans/2026-05-17-portfolio-improvements.md`
 **Branch:** master (direct commits, per user preference)
 
-## Status: 8 of 17 tasks complete (backend done, client pending)
+## Status: 16 of 17 tasks complete — only manual verification (Task 17) remains
 
-All server-side changes are merged. The portfolio API now returns native-currency prices, comments, and `latest_valuation`; transactions accept `price_native`; unknown cryptos auto-resolve via CoinGecko search; PATCH endpoints exist for assets, transactions, and (still TODO) flat-valuations. **No client changes have been made yet** — the dashboard still shows USD only and has no Modify button, filters, or sortable columns.
-
-Full server test suite: **87/87 passing.**
+All server + client code changes are merged to master. Server tests: **92/92 passing**. Client production build: **success** (478 KB, 156 KB gzipped). The dashboard now shows native-currency prices, type filter chips, sortable columns, comment icons, and a Modify button. CoinGecko auto-resolves unknown crypto symbols. Only Task 17 (browser smoke test) is outstanding.
 
 ---
 
-## ✅ Done (Tasks 1–8)
+## ✅ Done (Tasks 1–16)
+
+### Server (Tasks 1–9)
 
 | # | Task | Commit | Notes |
 |---|------|--------|-------|
@@ -25,82 +25,58 @@ Full server test suite: **87/87 passing.**
 | 6 | Portfolio endpoint enriches payload with `currency`, `current_price_native`, `avg_buy_price_native`, `comment`, `latest_valuation` | `1c0dc8d` | Backward-compatible — falls back to `price_usd` for legacy rows |
 | 7 | `PATCH /api/assets/:id` (partial name/comment/currency); POST seeds currency from symbol + fire-and-forget Yahoo refine | `d69b982` | Mock pattern: top-level `vi.mock` in tests |
 | 8 | POST `/api/transactions` accepts `price_native` (FX-converts to USD); new `PATCH /api/transactions/:id` | `9cef491` | Mock pattern: `vi.spyOn(fxService, 'getUsdRate')` |
+| 9 | `PATCH /api/flat-valuations/:id` with partial value_usd/date updates | `20dd1b8` | New test file `tests/flatValuations.test.js` (5 tests) |
 
-**Note on test mocking patterns** — Two patterns work in this CJS + Vitest setup, document for future contributors:
-- **Top-level `vi.mock(path, factory)`** — works when production code imports the module *as an object* (e.g. `const yahooFinance = require('./yahooFinance'); yahooFinance.fetchStockPrices(...)`). Vitest hoists `vi.mock` and replaces the entire export.
-- **`vi.spyOn(module, 'method')` in `beforeEach`** — works when production code destructures (e.g. `const { getUsdRate } = require('./fxService')`). The spy patches the live module object property.
-- ❌ `vi.mock` **inside** `beforeAll`/`beforeEach` does NOT hoist correctly — leaks to real network.
+### Client (Tasks 10–16)
+
+| # | Task | Commit | Notes |
+|---|------|--------|-------|
+| 10 | `client/src/api.js` — `patchAsset`, `updateTransaction`, `updateValuation` helpers | `c606985` | 3 new methods |
+| 11 | `client/src/format.js` — `formatNative(value, currency)` + `formatUsd(value)` | `0b83607` | Handles USD/HKD/JPY/GBp/GBP/EUR/CNY/KRW/INR + fallback |
+| 12 | `client/src/components/FilterBar.jsx` — toggle chips for stock/crypto/flat/other | `7d082bb` | "0 selected — showing all" hint |
+| 13 | `AssetTable.jsx` rewrite — currency rendering, comment icon, filterTypes, sortable headers, Modify button | `79fff17` | Group rendering preserved; sort cycles asc → desc → none |
+| 14 | `ModifyAssetModal.jsx` (replaces `EditAssetModal.jsx`) — edits name/comment + latest tx (qty/price_native) OR latest valuation | `34c1ad5` | Fetches latest tx via `api.getTransactions(asset.id)[0]` |
+| 15 | `DashboardPage.jsx` wiring — `filterTypes` state, `sort` state, FilterBar mount, ModifyAssetModal swap | `c471208` | Excel export now includes Currency + Price (Native) columns |
+| 16 | `AddAssetModal.jsx` label tweak — "Price per unit" + currency-hint for stock type | `cf59c66` | Hint: "For non-US stocks, enter the price in the local currency..." |
+
+**Note on test mocking patterns** (kept for future contributors):
+- **Top-level `vi.mock(path, factory)`** — for code that imports modules as objects (e.g. `const yahooFinance = require('./yahooFinance'); yahooFinance.fetchStockPrices(...)`)
+- **`vi.spyOn(module, 'method')` in `beforeEach`** — for code that destructures (e.g. `const { getUsdRate } = require('./fxService')`)
+- ❌ `vi.mock` **inside** `beforeAll`/`beforeEach` does NOT hoist — silently leaks to real network
 
 ---
 
-## ⏳ Not done (Tasks 9–17)
+## ⏳ Not done (Task 17 only)
 
-### Task 9 — Flat valuations PATCH endpoint *(server, ~10 min)*
-File: `server/routes/flatValuations.js`. Add `PATCH /api/flat-valuations/:id` accepting `{value_usd, date}` with validation. Add tests. Required by the Modify modal for flat/other assets (Task 14).
+### Task 17 — Manual verification *(user-facing, ~15 min)*
 
-### Task 10 — Client API helpers *(~5 min)*
-File: `client/src/api.js`. Add `patchAsset(id, data)`, `updateTransaction(id, data)`, `updateValuation(id, data)`.
+Start dev servers and exercise all 6 features in the browser:
 
-### Task 11 — Currency-aware format helper *(~5 min)*
-Create `client/src/format.js` with `formatNative(value, currency)` and `formatUsd(value)`. Handles USD, HKD, JPY, GBp/GBP, EUR, CNY, KRW, INR + fallback.
+```
+cd server && npm run dev
+cd client && npm run dev   # in a second terminal
+```
 
-### Task 12 — FilterBar component *(~15 min)*
-Create `client/src/components/FilterBar.jsx` — toggle chips for stock/crypto/flat/other.
+1. **Foreign currency** — Add `0700.HK` (Tencent), name "Tencent", qty 100, price 320. After refresh, Avg Buy should show `HK$320.00`, Value column shows `$`. Add `7203.T` (Toyota), verify `¥` with no decimals.
+2. **Crypto auto-resolve** — Add `PEPE`. Current price should populate (not `—`). Try `SAND`, `SEI`, `STRK`.
+3. **Filter chips** — Toggle each chip; verify rows hide/show; "0 selected — showing all" hint when all off.
+4. **Sortable headers** — Click "Value" → asc arrow → click again → desc → click third time → returns to default. Repeat with "P&L".
+5. **Comment** — Click Modify on any asset, add a comment, save. 💬 icon should appear next to the name; tooltip shows on hover.
+6. **Modify button** — Change name and quantity, save. After refresh, both changes should stick.
 
-### Task 13 — AssetTable rewrite *(~30 min, biggest UI piece)*
-Rewrite `client/src/components/AssetTable.jsx` to:
-- Render Avg Buy / Current Price in native currency via `formatNative`
-- Show 💬 icon next to name when `asset.comment` exists (tooltip via `title`)
-- Apply `filterTypes` filter and `sort` props
-- Make column headers clickable to sort (asc → desc → none)
-- Replace deleted Edit button with new Modify button
-- Group rendering preserved
-
-### Task 14 — ModifyAssetModal *(~20 min)*
-Create `client/src/components/ModifyAssetModal.jsx`:
-- Edits name, comment, latest transaction's qty + price (in native currency)
-- For flat/other: edits latest valuation's `value_usd` (uses `asset.latest_valuation` from portfolio payload)
-- Fetches latest tx via `api.getTransactions(asset.id)` (sorted DESC, take first)
-- Delete the old `EditAssetModal.jsx`
-
-### Task 15 — DashboardPage wiring *(~10 min)*
-Update `client/src/pages/DashboardPage.jsx`:
-- Add `filterTypes` state (default all 4 types)
-- Add `sort` state with `handleSortChange` cycling asc → desc → none
-- Mount `FilterBar` between SummaryBar and AssetTable
-- Swap `EditAssetModal` import → `ModifyAssetModal`
-- Pass new props to AssetTable
-
-### Task 16 — AddAssetModal label tweak *(~5 min)*
-`client/src/components/AddAssetModal.jsx`: relabel "Price per unit (USD)" → "Price per unit"; add small hint for stock type explaining currency auto-detection from symbol suffix.
-
-### Task 17 — Manual verification *(~15 min)*
-Start dev servers, exercise all 6 features in browser:
-1. Add `0700.HK` — verify Avg Buy shows `HK$`, Value shows `$`
-2. Add `PEPE` — verify price resolves
-3. Toggle filter chips
-4. Click column headers to sort
-5. Add a comment via Modify, verify 💬 icon
-6. Modify a transaction's qty/price, verify portfolio reflects change
+If issues are found, fix them and commit.
 
 ---
 
 ## Pre-existing issues observed but not fixed
 
-- **`server/tests/priceService.test.js` had `vi.mock` inside `beforeAll`** — mock didn't intercept, tests silently called real Yahoo. Fixed during Task 4 (`612a9de`).
+- **`server/tests/priceService.test.js` had `vi.mock` inside `beforeAll`** — silently called real Yahoo. Fixed during Task 4 (`612a9de`).
 - **`server/tests/transactions.test.js` had similar mock-hoisting bug** when Task 8 first attempted to add fxService mock — fixed mid-task with `vi.spyOn` pattern.
-
-If you write new server tests later, copy the pattern from `tests/fxService.test.js` or `tests/transactions.test.js` (post-Task-8).
+- **Untracked test scratch files** in `server/` (`test-output.txt`, `test_fx_fail.js`, `test_spec_check.js`) and `.superpowers/` — not committed, can be cleaned up at user's discretion.
 
 ---
 
-## How to resume
+## Verification summary (post Task 16)
 
-In a fresh session, run:
-
-```
-read F:/PROJECTS/profolio_viewer/docs/superpowers/plans/2026-05-17-portfolio-improvements-PROGRESS.md
-read F:/PROJECTS/profolio_viewer/docs/superpowers/plans/2026-05-17-portfolio-improvements.md
-```
-
-The plan file has full code for every remaining task. Resume from **Task 9** using the subagent-driven-development workflow (your memory preference). All commits go directly to master.
+- Server: `cd server && npx vitest run` → **92/92 passing** in 2.23s (11 test files)
+- Client: `cd client && npx vite build` → **success**, 47 modules, 478 KB / 156 KB gzipped
