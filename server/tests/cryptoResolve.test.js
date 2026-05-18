@@ -29,14 +29,14 @@ describe('fetchCryptoPrices — auto-resolve unknown symbols', () => {
     const db = createTestDb();
     runMigrations(db);
     axiosGetSpy
-      .mockResolvedValueOnce({ data: { coins: [{ id: 'pepe', symbol: 'pepe', name: 'Pepe' }] } })
-      .mockResolvedValueOnce({ data: { pepe: { usd: 0.0000018 } } });
+      .mockResolvedValueOnce({ data: { coins: [{ id: 'fake-coin', symbol: 'fake', name: 'Fake' }] } })
+      .mockResolvedValueOnce({ data: { 'fake-coin': { usd: 0.0000018 } } });
 
-    const res = await fetchCryptoPrices(['PEPE'], db);
-    expect(res.PEPE).toBe(0.0000018);
+    const res = await fetchCryptoPrices(['FAKE'], db);
+    expect(res.FAKE).toBe(0.0000018);
 
-    const cached = db.prepare('SELECT coin_gecko_id FROM crypto_id_map WHERE symbol = ?').get('PEPE');
-    expect(cached.coin_gecko_id).toBe('pepe');
+    const cached = db.prepare('SELECT coin_gecko_id FROM crypto_id_map WHERE symbol = ?').get('FAKE');
+    expect(cached.coin_gecko_id).toBe('fake-coin');
   });
 
   it('uses cached coin_gecko_id on second call (no /search)', async () => {
@@ -84,14 +84,14 @@ describe('fetchCryptoPrices — auto-resolve unknown symbols', () => {
     runMigrations(db);
     const dayOld = new Date(Date.now() - 25 * 3600_000).toISOString();
     db.prepare('INSERT INTO crypto_id_map (symbol, coin_gecko_id, resolved_at) VALUES (?,?,?)')
-      .run('SEI', null, dayOld);
+      .run('LATEFAKE', null, dayOld);
 
     axiosGetSpy
-      .mockResolvedValueOnce({ data: { coins: [{ id: 'sei-network', symbol: 'sei' }] } })
-      .mockResolvedValueOnce({ data: { 'sei-network': { usd: 0.45 } } });
+      .mockResolvedValueOnce({ data: { coins: [{ id: 'late-fake', symbol: 'latefake' }] } })
+      .mockResolvedValueOnce({ data: { 'late-fake': { usd: 0.45 } } });
 
-    const res = await fetchCryptoPrices(['SEI'], db);
-    expect(res.SEI).toBe(0.45);
+    const res = await fetchCryptoPrices(['LATEFAKE'], db);
+    expect(res.LATEFAKE).toBe(0.45);
   });
 
   it('matches symbol case-insensitively in search results', async () => {
@@ -100,11 +100,11 @@ describe('fetchCryptoPrices — auto-resolve unknown symbols', () => {
     axiosGetSpy
       .mockResolvedValueOnce({ data: { coins: [
         { id: 'somethingelse', symbol: 'other' },
-        { id: 'starknet', symbol: 'strk' },
+        { id: 'caseycoin', symbol: 'casey' },
       ] } })
-      .mockResolvedValueOnce({ data: { starknet: { usd: 1.2 } } });
+      .mockResolvedValueOnce({ data: { caseycoin: { usd: 1.2 } } });
 
-    const res = await fetchCryptoPrices(['STRK'], db);
-    expect(res.STRK).toBe(1.2);
+    const res = await fetchCryptoPrices(['CASEY'], db);
+    expect(res.CASEY).toBe(1.2);
   });
 });

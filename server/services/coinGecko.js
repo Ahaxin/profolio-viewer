@@ -8,6 +8,14 @@ const TICKER_TO_ID = {
   XRP: 'ripple',   ADA: 'cardano',   DOGE: 'dogecoin', DOT: 'polkadot',
   AVAX: 'avalanche-2', MATIC: 'matic-network', LINK: 'chainlink',
   LTC: 'litecoin', UNI: 'uniswap',   ATOM: 'cosmos',  XLM: 'stellar',
+  // Free-tier rate-limit (~10 req/min) makes /search unreliable when many
+  // unknowns arrive in one portfolio refresh; pre-mapping common tickers
+  // here keeps refreshes to a single /simple/price call.
+  '1000SATS': '1000sats-ordinals',
+  MINA: 'mina-protocol', DYM: 'dymension', SEI: 'sei-network', PIXEL: 'pixels',
+  GALA: 'gala', WLD: 'worldcoin-wld', SAND: 'the-sandbox', FRAX: 'frax',
+  SUI: 'sui', DYDX: 'dydx-chain', PEPE: 'pepe', WIF: 'dogwifcoin',
+  TRUMP: 'official-trump', STRK: 'starknet', AI: 'gensyn',
 };
 
 async function resolveCoinId(symbol, db) {
